@@ -1,5 +1,5 @@
 
-from PIL import Image as Img
+from PIL import Image
 from PIL import ImageTk
 import tkinter
 
@@ -12,14 +12,7 @@ import playerlib
 
 #Functions
 def RBGAImage(path):
-	return Img.open(path).convert("RGBA")
-
-def IsACell(position):
-	#position is a number
-	if position < 0 or position > 360:
-		return False
-	else:
-		return True
+	return Image.open(path).convert("RGBA")
 	
 	
 def quit_gui(event,root):
@@ -45,108 +38,182 @@ def close_two(event,textbox,root):
 	root.destroy()
 
 class GUIClass:
-	def __init__(self, name, Goban, Game):
+	def __init__(self, name, goban, game):
+		self.goban = goban
+		self.game = game
+		
 		self.root = tkinter.Tk(className=name) # creates root window
-		self.haut = tkinter.Frame(self.root, borderwidth=0, relief=tkinter.GROOVE)
-		self.bas = tkinter.Frame(self.root, borderwidth=0, relief=tkinter.GROOVE)
-		self.gauche = tkinter.Frame(self.bas, borderwidth=0, relief=tkinter.GROOVE)
-		#self.canvas_goban = GUI_Goban(self)
-		self.droite = tkinter.Frame(self.bas, borderwidth=0, relief=tkinter.GROOVE)
-		self.move = tkinter.StringVar() #TODO: pas une tres bonne idee de nom
-		self.goban = Goban
-		self.game = Game
 		
-		self.canvas = tkinter.Canvas(self.gauche,width=600, height=600)
-		gui_goban = RBGAImage("pictures/Goban_600px_19.gif")
-		self.gui_imagetk = ImageTk.PhotoImage(gui_goban)
-		self.gui_image = tkinter.Label(self.canvas, image=self.gui_imagetk)
+		self.window_height = 500
+		self.window_width = 700
+		self.root.title("Go")
+		self.root.geometry(str(self.window_width)+"x"+str(self.window_height))
+		self.root.configure(background='grey')
 		
-	def initialize_goban(self):
-		self.canvas.pack()
-		self.gui_image.pack()
-		if self.game.joueur_courant.couleur == 1:
-			self.top_label.config(text = "A noir de jouer")
+		self.hspace = 1
+		self.top = tkinter.Frame(self.root, borderwidth=0, relief=tkinter.GROOVE)
+		self.top.grid(row=0, column=0, rowspan=self.hspace, columnspan=self.game.size)
+		self.goban_frame = tkinter.Frame(self.root, borderwidth=0, relief=tkinter.GROOVE)
+		self.goban_frame.grid(row=1, column=0, rowspan=self.game.size, columnspan=self.game.size)
+		self.goban_label = tkinter.Label(self.goban_frame, borderwidth = 0, highlightthickness = 0)
+		self.goban_label.grid()
+		self.right = tkinter.Frame(self.root, borderwidth=0, relief=tkinter.GROOVE)
+		self.right.grid(row=0, column=self.game.size, rowspan=self.game.size+self.hspace, columnspan=3)
+		
+		self.square_size = int(self.window_height / (self.game.size + self.hspace))
+		
+		self.top_label = tkinter.Label(self.top, text="Début de partie. A noir de jouer.")
+		self.top_label.pack()
+		self.right_label = tkinter.Label(self.right, text="Prisonniers capturés par noir : 0\nPrisonniers capturés par blanc : 0")
+		self.right_label.grid(row=max(0,int(self.game.size//2)-2), rowspan=2, columnspan=3)
+		
+		self.min_wait_ai = 0.3 #temps minimum pour un coup de l'ia si deux ias
+		
+		self.load_images()
+		self.draw_goban()
+		self.add_quit_button()
+		self.flag_two_ais = False
+		self.flag_continue = True
+		if not isinstance(self.game.noir, playerlib.Humain) and not isinstance(self.game.blanc, playerlib.Humain):
+			self.flag_two_ais = True
+		self.flag_human_active = False
+		if isinstance(self.game.joueur_courant, playerlib.Humain):
+			self.activate_human()
 		else:
-			self.top_label.config(text = "A blanc de jouer")
-		
-	def Launch(self):
-		self.haut.pack(side=tkinter.TOP, padx=10, pady=10)
-		self.top_label = tkinter.Label(self.haut, text="")
-		self.top_label.pack(padx=10, pady=10)
-		self.bas.pack(side=tkinter.BOTTOM, padx=10, pady=10)
-		self.gauche.pack(side=tkinter.LEFT, padx=10, pady=10)
-		self.droite.pack(side=tkinter.LEFT, padx=10, pady=10)
-		self.right_label = tkinter.Label(self.droite, text="No prisoner yet")
-		self.right_label.pack(side=tkinter.TOP, padx=10, pady=10)
-		self.pass_button = tkinter.Button(self.droite, text ='Pass')
-		self.pass_button.pack(side=tkinter.LEFT, padx=5, pady=5)
-		quit_button = tkinter.Button(self.droite, text ='Quit')
-		quit_button.pack(side=tkinter.LEFT, padx=5, pady=5)
-		quit_button.bind('<Button-1>', lambda event: quit_gui(event, self.root))
+			self.add_start_button()
+		#self.root.mainloop()
+		#self.canvas = tkinter.Canvas(self.gauche, width=600, height=600)
+		#gui_goban = RBGAImage("pictures/Goban_600px_19.gif")
+		#self.gui_imagetk = ImageTk.PhotoImage(gui_goban)
+		#self.gui_image = tkinter.Label(self.canvas, image=self.gui_imagetk)
 	
-	def GameOn(self):
-		self.initialize_goban()
-		self.move.trace("w", self.PlayMove)
-		self.pass_button.bind('<Button-1>', lambda event: self.play(-1, self.goban, self.game))
-		#First move :
-		self.move.set(0)
+	def add_start_button(self):
+		self.start_button = tkinter.Button(self.right, text ='Start')
+		self.start_button.grid(row=0, column=0)
+		self.start_button.bind('<Button-1>', lambda event: self.start_game())
 		
-	def PlayMove(self, *args):
-		#add a stone in the goban:
+	def start_game(self):
+		self.flag_continue = True
+		self.start_button.destroy()
+		self.add_stop_button()
+		self.ai_plays()
 		
-		if not isinstance(self.game.joueur_courant, playerlib.IA):
-			self.gui_image.bind("<Button-1>", lambda event: self.human_plays(event, self.goban, self.game))
-		else:
-			coord = self.game.joueur_courant.donne_coup(self.game)
-			self.play(coord, self.goban, self.game)
-
-		return True
+	def add_stop_button(self):
+		self.stop_button = tkinter.Button(self.right, text ='Stop')
+		self.stop_button.grid(row=0, column=0)
+		self.stop_button.bind('<Button-1>', lambda event: self.stop_game())
 		
-	def End(self):
-		self.root.mainloop() 
+	def stop_game(self):
+		self.flag_continue = False
+		self.stop_button.destroy()
+		self.add_start_button()
+	
+	def add_pass_button(self):
+		self.pass_button = tkinter.Button(self.right, text ='Pass')
+		self.pass_button.grid(row=int(self.game.size//2)+1, column=0)
+		self.pass_button.bind('<Button-1>', lambda event: self.human_plays(None))
 		
-	def play(self, coord, Goban, Game):
-		#PlayMove(coord,Goban,Game)			 
-		couleurstr = couleur_to_couleurstr(Game.joueur_courant.couleur)
-		if coord == -1: #code for passing
-			message = "Coup numéro "+str(Game.move)+": "+couleurstr+" passe. "
-			Game.jouer(-1)
-			message = message+"A "+couleurstr+" de jouer."
-			self.top_label.config(text = message)
+	def add_quit_button(self):
+		self.quit_button = tkinter.Button(self.right, text ='Quit')
+		self.quit_button.grid(row=int(self.game.size//2)+1, column=1)
+		self.quit_button.bind('<Button-1>', lambda event: quit_gui(event, self.root))
 		
-			self.update(Goban, Game)
-			if Game.move > 1 and Game.moves[-2] == -1: #2 pass de suite, fin du jeu
-				s = Game.score()
-				print('Fin de la partie! ')
-				if s > 0:
-					print('Blanc gagne avec '+str(s)+' points.')
-				elif s < 0:
-					print('Noir gagne avec '+str(-s)+' points.')
-				elif s == 0:
-					print('La partie est à égalité!')
-				else:
-					print('Un résultat surnaturel : '+str(s))
+	def load_images(self):
+		f_hg = "images/plateau_hg.png"
+		f_h = "images/plateau_h.png"
+		f_hd = "images/plateau_hd.png"
+		f_d = "images/plateau_d.png"
+		f_bd = "images/plateau_bd.png"
+		f_b = "images/plateau_b.png"
+		f_bg = "images/plateau_bg.png"
+		f_g = "images/plateau_g.png"
+		f_c = "images/plateau_c.png"
+		
+		imgtk_hg = Image.open(f_hg).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_h = Image.open(f_h).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_hd = Image.open(f_hd).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_d = Image.open(f_d).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_bd = Image.open(f_bd).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_b = Image.open(f_b).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_bg = Image.open(f_bg).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_g = Image.open(f_g).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		imgtk_c = Image.open(f_c).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		
+		self.img_goban = Image.new("RGBA", (self.game.size * self.square_size, self.game.size * self.square_size))
+		self.img_goban.paste(imgtk_hg, (0,0))
+		self.img_goban.paste(imgtk_hd, ((self.game.size-1)*self.square_size,0))
+		self.img_goban.paste(imgtk_bd, ((self.game.size-1)*self.square_size,(self.game.size-1)*self.square_size))
+		self.img_goban.paste(imgtk_bg, (0,(self.game.size-1)*self.square_size))
+		for i in range(1, self.game.size-1):
+			self.img_goban.paste(imgtk_h, (i*self.square_size,0))
+			self.img_goban.paste(imgtk_d, ((self.game.size-1)*self.square_size,i*self.square_size))
+			self.img_goban.paste(imgtk_b, (i*self.square_size,(self.game.size-1)*self.square_size))
+			self.img_goban.paste(imgtk_g, (0,i*self.square_size))
+			for j in range(1, self.game.size-1):
+				self.img_goban.paste(imgtk_c, (i*self.square_size,j*self.square_size))
+		
+		f_black = "images/stone_black.png"
+		f_black_last = "images/stone_black.png"
+		f_white = "images/stone_white.png"
+		f_white_last = "images/stone_white.png"
+		
+		self.img_black = Image.open(f_black).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		self.img_white = Image.open(f_white).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		self.img_black_last = Image.open(f_black_last).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		self.img_white_last = Image.open(f_white_last).resize((self.square_size, self.square_size), Image.ANTIALIAS).convert("RGBA")
+		
+		
+	def draw_goban(self):
+		
+		self.full_img_goban = Image.new("RGBA", (self.game.size * self.square_size, self.game.size * self.square_size))
+		self.full_img_goban.paste(self.img_goban)
+				
+		for i in range(self.game.size):
+			for j in range(self.game.size):
+				if self.goban.cells[i][j].color == 1:
+					self.full_img_goban.paste(self.img_black, (i*self.square_size, j*self.square_size), self.img_black)
+				elif self.goban.cells[i][j].color == -1:
+					self.full_img_goban.paste(self.img_white, (i*self.square_size, j*self.square_size), self.img_white)
 					
-			else:
-				self.PlayMove()
+		if len(self.game.moves) > 0:
+			if self.game.moves[-1] != -1:
+				coord = self.game.moves[-1]
+				if self.goban.cells[coord[0]][coord[1]].color == 1:
+					self.full_img_goban.paste(self.img_black_last, (coord[0]*self.square_size, coord[1]*self.square_size), self.img_black_last)
+				elif self.goban.cells[coord[0]][coord[1]].color == -1:
+					self.full_img_goban.paste(self.img_white_last, (coord[0]*self.square_size, coord[1]*self.square_size), self.img_white_last)
+		self.full_img_goban = ImageTk.PhotoImage(self.full_img_goban)
+		self.goban_label.configure(image=self.full_img_goban)
+		
+	def activate_goban(self):
+		self.goban_label.bind("<Button-1>", lambda event: self.human_plays(event))
+	
+	def activate_human(self):
+		self.flag_human_active = True
+		self.activate_goban()
+		self.add_pass_button()
+		
+	def deactivate_human(self):
+		self.flag_human_active = False
+		self.goban_label.unbind("<Button-1>")
+		self.pass_button.destroy()
+			
+	def human_plays(self, event):##,Goban, Game):
+		flag_played = False
+		if event is None:
+			self.game.jouer(-1)
+			flag_played = True
 		else:
-			
-			if not isinstance(self.game.joueur_courant, playerlib.IA) or 1==1:
-				message = "Move number "+str(Game.move+1)+": "+couleurstr+" plays at "+some_functions.CoordToPosition(coord, Game.size)+'. '
-				message += couleurstr+" to play."
-				self.top_label.config(text = message)
-			
-			Game.jouer(coord)
-			self.update(Goban, Game)
-			if isinstance(self.game.noir, playerlib.IA) and isinstance(self.game.blanc, playerlib.IA):
-				pass#here later put to sleep
-			self.PlayMove()
-			
-			message = "Black prisoners: "+str(Game.score_black)+".\n White prisoners: "+str(Game.score_white)+"."
-			self.right_label.config(text = message)
-			
-	def human_plays(self,event,Goban, Game):
-		coord = some_functions.GuiToCoord(event.x,event.y)
+			coord = self.event_to_coord(event)
+			if coord is not None:
+				if movelib.IsValidMove(coord, self.goban, self.game):
+					self.game.jouer(coord)
+					flag_played = True
+		if flag_played:
+			self.update_interface()
+			if not isinstance(self.game.joueur_courant, playerlib.Humain) and not self.game.partie_finie:
+				self.ai_plays()
+		'''coord = some_functions.GuiToCoord(event.x,event.y)
 		if coord == False:
 			return False
 		else:
@@ -154,40 +221,77 @@ class GUIClass:
 				self.play(coord, Goban, Game)  
 				return True
 			else:
-				return False  
-			
-	def update(self,Goban,Game):
-		gui_goban = RBGAImage("pictures/Goban_600px_19.gif")
-		gui_stone_white = RBGAImage("pictures/stone_white.gif")
-		gui_stone_black = RBGAImage("pictures/stone_black.gif")
-		gui_stone_white_current = RBGAImage("pictures/stone_white_current.gif")
-		gui_stone_black_current = RBGAImage("pictures/stone_black_current.gif")
-		if Game.move > 0:
-			last_move = Game.moves[-1]
+				return False  '''
+		
+	def ai_plays(self):
+		start = time.time()
+		ai_move = self.game.joueur_courant.donne_coup(self.game)
+		end = time.time()
+		if self.flag_two_ais and end-start < self.min_wait_ai:
+			time.sleep(self.min_wait_ai - end + start)
+		self.game.jouer(ai_move)
+		self.update_interface()
+		if not isinstance(self.game.joueur_courant, playerlib.Humain) and\
+			self.flag_continue:
+			if self.game.partie_finie:
+				self.stop_button.destroy()
+			else:
+				self.ai_plays()
+		
+	def update_interface(self):
+		self.draw_goban()
+		if self.game.joueur_courant.color == 1:
+			color = "noir"
+			previous = "blanc"
 		else:
-			last_move = [Game.size,Game.size]
+			color = "blanc"
+			previous = "noir"
+		if self.game.partie_finie:
+			msg_turn = "La partie est terminée !"
+		else:
+			msg_turn = "A "+color+" de jouer."
+		if self.game.moves[-1] == -1:
+			msg_move = previous+" a passé. "
+		else:
+			msg_move = previous+" a joué en "+str(self.game.moves[-1])+". "
+		if self.game.partie_finie:
+			score = self.game.score()
+			if score > 0:
+				msg_victoire = "Noir gagne la partie de "+str(score)+" points."
+			elif score < 0:
+				msg_victoire = "Blanc gagne la partie avec "+str(-score)+" points."
+			else:
+				msn_victoire = "La partie est un match nul."
+			self.top_label.config(text=msg_move+msg_turn+'\n'+msg_victoire)
+		else:
+			self.top_label.config(text=msg_move+msg_turn)
+		msg_score_black = "Prisonniers capturés par noir : "+str(self.game.score_black)+"."
+		msg_score_white = "Prisonniers capturés par blanc : "+str(self.game.score_white)+"."
+		self.right_label.config(text=msg_score_black+'\n'+msg_score_white)
+		if self.flag_human_active and (self.game.partie_finie or not 
+									   isinstance(self.game.joueur_courant, playerlib.Humain)):
+			self.deactivate_human()
+		elif not self.flag_human_active and not self.game.partie_finie\
+			and isinstance(self.game.joueur_courant, playerlib.Humain):
+			self.activate_human()
+		self.root.update()
+	
 		
-		for i in range(Goban.size):
-			for j in range(Goban.size):
-				if Goban.cells[i][j].color==1:
-					gui_goban.paste(gui_stone_black, (some_functions.CoordToGui(i,j)[0], some_functions.CoordToGui(i,j)[1]), gui_stone_black)		
-					if last_move != -1:
-						if i==last_move[0] and j==last_move[1]:
-							gui_goban.paste(gui_stone_black_current, (some_functions.CoordToGui(i,j)[0], some_functions.CoordToGui(i,j)[1]), gui_stone_black_current)
-					
-				elif Goban.cells[i][j].color==-1:
-					gui_goban.paste(gui_stone_white, (some_functions.CoordToGui(i,j)[0], some_functions.CoordToGui(i,j)[1]), gui_stone_white)		
-					if last_move != -1:
-						if i==last_move[0] and j==last_move[1]:
-							gui_goban.paste(gui_stone_white_current, (some_functions.CoordToGui(i,j)[0], some_functions.CoordToGui(i,j)[1]), gui_stone_white_current)
-
+	def event_to_coord(self, event):
+		"""Prend un event, et rend les coordonnées correspondantes sur le goban, 
+		ou None si l'event ne correspond pas à un clic sur le goban."""
+		coord = [int(event.x / self.square_size), int(event.y / self.square_size)]
+		if coord[0] >= self.game.size or coord[1] < 0:
+			return None
+		else:
+			return coord		
 		
-		self.gui_imagetk = ImageTk.PhotoImage(gui_goban)
-		self.gui_image.config(image = self.gui_imagetk)
-		
-		
-def couleur_to_couleurstr(c):
+def couleur_to_couleurstr(c, maj=False):
 	if c == 1:
+		if maj:
+			return "Noir"
 		return "noir"
 	else:
+		if maj:
+			return "Blanc"
 		return "blanc"

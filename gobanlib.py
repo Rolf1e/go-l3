@@ -85,12 +85,14 @@ class GobanClass():
 		return new_goban
 	
 	def liste_coups_oks(self):
-		'''liste_coups_oks() rend la liste des coups valides qui ne sont pas des yeux en testant si chaque case libre est un coup valide et pas un oeil, y compris passer. A ne pas trop utiliser.'''
+		'''liste_coups_oks() rend la liste des coups valides qui ne sont pas des yeux
+		en testant si chaque case libre est un coup valide et pas un oeil, y compris passer. A ne pas trop utiliser.'''
 		candidats = [c for c in self.free_coords]
+		coups = []
 		for c in candidats:
-			if not movelib.IsValidMove(c, self, self.game) or movelib.IsEye(c, self, self.game):
-				candidats.remove(c)
-		return candidats + [-1]
+			if movelib.IsValidMove(c, self, self.game) and not movelib.IsEye(c, self, self.game):
+				coups.append(c)
+		return coups + [-1]
 	
 	def liste_cases_libres(self):
 		return self.free_coords
@@ -118,12 +120,11 @@ class GroupClass():
 			
 	def autodestruction(self, fake=False):
 		if len(self.cells) == 1: #if only one cell was captured, it could be a possibility for a KO next move.
-			self.goban.game.flag_supercifialKO = True
-			self.goban.game.coordoflastlonercaptured = self.cells[0].coord
+			self.goban.game.coord_last_loner_captured = self.cells[0].coord
 		#tracking prisonners points
-		if self.color == -1 and not fake:
+		if self.color == 1 and not fake:
 			self.goban.game.score_white += len(self.cells)
-		elif self.color == 1 and not fake:
+		elif self.color == -1 and not fake:
 			self.goban.game.score_black += len(self.cells)
 		
 		#PJ: to correct bug for suicide

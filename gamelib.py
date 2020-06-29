@@ -3,7 +3,9 @@ import gobanlib
 import copy
 import interface
 
-class GameClass():	
+
+
+class GameClass:
 	def __init__(self, size, komi, opts={}):
 		self.size = size # will initiate Goban class
 		self.komi = komi
@@ -17,11 +19,10 @@ class GameClass():
 		self.score_white = 0
 		self.goban = gobanlib.GobanClass(self)
 		
-		self.flag_superficialKO = False
-		
+			
 		self.noir = None
 		self.blanc = None
-		if "choix_joueurs" not in opts or opts["choix_joueurs"]:
+		if ("choix_joueurs" not in opts or opts["choix_joueurs"]):
 			possibilites = [playerlib.Humain] + playerlib.IA.__subclasses__()
 			if len(possibilites) == 1:
 				print("Un seul type de joueur est actuellement implémenté : "+
@@ -44,22 +45,22 @@ class GameClass():
 		self.joueur_courant = self.noir
 		
 		self.partie_finie = False
+		self.coord_last_loner_captured = None
 		
 	def lance_gui(self):
 		gui = interface.GUIClass("Go", self.goban, self)
-		gui.Launch()
-		gui.GameOn()
-		gui.End()
+		gui.root.mainloop()
 
 	def jouer(self,coord):
 		'''jouer(coord). joue le coup coord, échange les joueurs et vérifie si la partie est finie.'''
+		self.coord_last_loner_captured = None
 		self.flag_superficialKO = False
 		if coord != -1:
 			self.goban.play(coord)
 			self.move += 1
 			self.moves.append(coord)
 		else:
-			if self.moves[-1] == -1:
+			if len(self.moves)>0 and self.moves[-1] == -1:
 				self.partie_finie = True
 			self.moves.append(-1)
 		self.color *= -1
