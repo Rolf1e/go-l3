@@ -1,4 +1,4 @@
 import gamelib
 
-jeu = gamelib.GameClass(9, 0.5)
+jeu = gamelib.GameClass(7, 0.5)
 jeu.lance_gui()
