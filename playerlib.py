@@ -27,7 +27,11 @@ class Random(IA):
         super(Random, self).__init__(jeu, couleur)
 
     def donne_coup(self, jeu):
-         coups = jeu.goban.liste_coups_oks()
-         return coups[randint(0, len(coups))] 
+        coups = jeu.goban.liste_coups_oks()
+        length = len(coups)
+        if not coups:
+             return -1
+        else:
+            return coups[randint(0, length) - 1]
 
 
