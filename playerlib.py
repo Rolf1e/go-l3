@@ -22,12 +22,12 @@ class IA(Joueur):
     pass
 
 
-# class Random(IA):
-#     def __init__(self, jeu, couleur):
-#         super(Random, self).__init__(jeu, couleur)
-#
-#     def donne_coup(self, jeu):
-#         return randon_play()
-#
-# def randon_play():
+class Random(IA):
+    def __init__(self, jeu, couleur):
+        super(Random, self).__init__(jeu, couleur)
+
+    def donne_coup(self, jeu):
+         coups = jeu.goban.liste_coups_oks()
+         return coups[randint(0, len(coups))] 
+
 
