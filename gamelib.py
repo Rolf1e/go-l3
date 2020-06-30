@@ -87,7 +87,7 @@ class GameClass:
 			new_game.gopositions = copy.deepcopy([self.gopositions[-1]])
 		new_game.score_black = self.score_black
 		new_game.score_white = self.score_white
-		new_game.flag_superficialKO = self.flag_superficialKO
+		#new_game.flag_superficialKO = self.flag_superficialKO
 		return new_game
 		
 	def score(self):

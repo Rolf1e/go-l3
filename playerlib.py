@@ -35,36 +35,41 @@ class Random(IA):
             return coups[randint(0, length) - 1]
 
 class MonteCarlo(IA):
-    def __init__(self, jeu, color):
-        super(MonteCarlo, self).__init__(jeu, color)
+    def __init__(self, game, color):
+        super(MonteCarlo, self).__init__(game, color)
 
-    def donne_coup(self, jeu):
-        return self.simulation(jeu, 2)
+    def donne_coup(self, game):
+        coups = game.goban.liste_coups_oks()
+        best = []
+        score = -np.infty
+        if not coups:
+            return -1
 
-    def simulation(self, jeu, max_sim):
-        simulation = jeu.copy()
-        current_sim = 0;
-        while (simulation.partie_finie == False or current_sim == max_sim):
-            available = simulation.goban.liste_coups_oks()
-            if not available:
-                return -1
-            else:
-                for coup in available:
-                    if self.test_coup(simulation, available[current_sim], simulation.color) < jeu.color:
-                        return available[current_sim]
-            current_sim += 1 
-        return -1
+        else:
+            for coup in coups:
+                average = self.average(game.copy(), 10)
+                if average > score:
+                    score = average
+                    best = coup
 
-    def test_coup(self, simulation, coup, player):
-        simulation.copy().jouer(coup)
-        return simulation.score_black if player == -1 else simulation.score_white
+        return best
 
-            
+    def average(self, game, nb_sim):
+        average = 0
+        for i in range(nb_sim):
+            print("simulation" + str(i))
+            result = self.simulation(game) * self.color
+            average += result
 
+        return average / nb_sim
 
+    def simulation(self, simulation):
+        i = 0
+        while not simulation.partie_finie:
+            i += 1
+            print(i)
+            coups = simulation.goban.liste_coups_oks()
+            simulation.jouer(coups[randint(0, len(coups) - 1)])
 
-
-
-
-
+        return simulation.score()
 
