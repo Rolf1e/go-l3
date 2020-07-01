@@ -39,37 +39,39 @@ class MonteCarlo(IA):
         super(MonteCarlo, self).__init__(game, color)
 
     def donne_coup(self, game):
+        best = -1
+        score = -np.infty 
         coups = game.goban.liste_coups_oks()
-        best = []
-        score = -np.infty
         if not coups:
             return -1
 
         else:
+
             for coup in coups:
-                average = self.average(game.copy(), 10)
+                game_copy = game.copy()
+                game_copy.jouer(coup)
+                average = self.average(game_copy, 10)
                 if average > score:
-                    score = average
+                    score = average 
                     best = coup
 
+#        print("best:", best)
         return best
 
     def average(self, game, nb_sim):
         average = 0
         for i in range(nb_sim):
-            print("simulation" + str(i))
-            result = self.simulation(game) * self.color
+            result = self.simulation(game.copy()) * self.color
             average += result
 
         return average / nb_sim
 
-    def simulation(self, simulation):
-        i = 0
-        while not simulation.partie_finie:
-            i += 1
-            print(i)
-            coups = simulation.goban.liste_coups_oks()
-            simulation.jouer(coups[randint(0, len(coups) - 1)])
-
-        return simulation.score()
+    def simulation(self, sim):
+        while not sim.partie_finie:
+            coups = sim.goban.liste_coups_oks()
+            sim.jouer(coups[randint(0, len(coups) - 1)])
+        if sim.score() > 0:
+            return 1
+        else:
+            return 0
 
