@@ -1,3 +1,5 @@
+Tigran SLAMA
+
 Require :
 
  - Pip : `apt install python3-pip`
@@ -12,5 +14,6 @@ Require :
 
  Run following to start the AI : `python3 main.py`
 
-Random [x]
-Monte Carlo [x] 
+ - [x] Random 
+
+ - [x] Monte Carlo  
