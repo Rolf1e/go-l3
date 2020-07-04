@@ -35,8 +35,10 @@ class Random(IA):
             return coups[randint(0, length) - 1]
 
 class MonteCarlo(IA):
-    def __init__(self, game, color):
+    def __init__(self, game, color, nb_sim):
         super(MonteCarlo, self).__init__(game, color)
+        self.nb_sim = nb_sim
+        self.nb_coup_player = 0
 
     def donne_coup(self, game):
         best = -1
@@ -50,11 +52,11 @@ class MonteCarlo(IA):
             for coup in coups:
                 game_copy = game.copy()
                 game_copy.jouer(coup)
-                average = self.average(game_copy, 10)
+                average = self.average(game_copy, self.nb_sim)
                 if average > score:
                     score = average 
                     best = coup
-
+        self.nb_coup_player += 1
 #        print("best:", best)
         return best
 
@@ -70,8 +72,59 @@ class MonteCarlo(IA):
         while not sim.partie_finie:
             coups = sim.goban.liste_coups_oks()
             sim.jouer(coups[randint(0, len(coups) - 1)])
-        if sim.score() > 0:
-            return 1
+        return sim.score()
+
+class MonteCarloArthur(IA):
+
+    def __init__(self, jeu, color, nombreSimulation = 5, showCompteur = False):
+        super(MonteCarloArthur, self).__init__(jeu, color)
+        self.nombreSimulation = nombreSimulation
+        self.nombreDeCoup = 0
+        self.showCompteur = showCompteur
+
+    def donne_coup(self, game):
+
+        listeCoups = game.goban.liste_coups_oks()
+        tailleListeCoups = len(listeCoups) - 1
+        coor = []
+        score = - np.infty
+
+        if tailleListeCoups != 0:
+
+            for i in range(tailleListeCoups):
+                averageScore = 0
+
+                for j in range(self.nombreSimulation):
+                    copyGame = game.copy()
+                    copyGame.jouer(listeCoups[i])
+                    averageScore = averageScore + (self.simulation(copyGame) * self.color)
+
+                averageScore = averageScore / self.nombreSimulation
+
+                if averageScore > score:
+                    score = averageScore
+                    coor = listeCoups[i]
+
+            if self.showCompteur:
+                print("nombre de coups : " + str(self.nombreDeCoup))
+
+            return coor
+
         else:
-            return 0
+            if self.showCompteur:
+                print("nombre de coups : " + str(self.nombreDeCoup))
+
+            return -1
+
+    def simulation(self, game):
+
+        while not game.partie_finie:
+            listeCoups = game.goban.liste_coups_oks()
+            arrayLength = len(listeCoups) - 1
+            randomNumber = randint(0, arrayLength)
+            game.jouer(listeCoups[randomNumber])
+            self.nombreDeCoup = self.nombreDeCoup + 1
+
+        return game.score()
+
 
